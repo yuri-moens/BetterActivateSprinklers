@@ -1,17 +1,22 @@
-﻿using System;
+﻿using System.Collections.Generic;
+using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
+using StardewValley.TerrainFeatures;
 
 namespace BetterActivateSprinklers
 {
     public class ModEntry : Mod
     {
         private ModConfig Config;
+        private object BetterSprinklersApi;
 
         public override void Entry(IModHelper helper)
         {
             Config = Helper.ReadConfig<ModConfig>();
+
+            Helper.Events.GameLoop.GameLaunched += this.OnGameLaunch;
 
             if (Config.ActivateOnAction)
             {
@@ -24,16 +29,19 @@ namespace BetterActivateSprinklers
             }
         }
 
+        private void OnGameLaunch(object sender, GameLaunchedEventArgs e)
+        {
+            if (Helper.ModRegistry.IsLoaded("Speeder.BetterSprinklers"))
+            {
+                BetterSprinklersApi = Helper.ModRegistry.GetApi("Speeder.BetterSprinklers");
+            }
+        }
+
         private void OnWorld_ObjectListChanged(object sender, ObjectListChangedEventArgs e)
         {
             foreach (var pair in e.Added)
             {
-                var obj = pair.Value;
-
-                if (obj.Name.Contains("Sprinkler"))
-                {
-                    obj.DayUpdate(Game1.currentLocation);
-                }
+                ActivateSprinkler(pair.Value);
             }
         }
 
@@ -46,10 +54,38 @@ namespace BetterActivateSprinklers
 
                 var obj = Game1.currentLocation.getObjectAtTile((int) tile.X, (int) tile.Y);
                 if (obj == null) return;
-                
-                if (obj.Name.Contains("Sprinkler"))
+
+                ActivateSprinkler(obj);
+            }
+        }
+
+        private void ActivateSprinkler(Object sprinkler)
+        {
+            if (sprinkler == null) return;
+
+            if (sprinkler.Name.Contains("Sprinkler"))
+            {
+                if (BetterSprinklersApi == null)
                 {
-                    obj.DayUpdate(Game1.currentLocation);
+                    sprinkler.DayUpdate(Game1.currentLocation);
+                }
+                else
+                {
+                    IDictionary<int, Vector2[]> coverageList = Helper.Reflection.GetMethod(BetterSprinklersApi, "GetSprinklerCoverage").Invoke<IDictionary<int, Vector2[]>>();
+                    Vector2[] coverage = coverageList[sprinkler.ParentSheetIndex];
+                    Vector2 sprinklerTile = sprinkler.TileLocation;
+
+                    foreach (Vector2 v in coverage)
+                    {
+                        Vector2 coveredTile = sprinklerTile + v;
+                        TerrainFeature terrainFeature;
+                        HoeDirt hoeDirt;
+
+                        if (Game1.currentLocation.terrainFeatures.TryGetValue(coveredTile, out terrainFeature) && (hoeDirt = terrainFeature as HoeDirt) != null)
+                        {
+                            hoeDirt.state.Value = 1;
+                        }
+                    }
                 }
             }
         }

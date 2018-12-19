@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
@@ -11,6 +12,7 @@ namespace BetterActivateSprinklers
     {
         private ModConfig Config;
         private object BetterSprinklersApi;
+        private bool LineSprinklersIsLoaded;
 
         public override void Entry(IModHelper helper)
         {
@@ -35,6 +37,8 @@ namespace BetterActivateSprinklers
             {
                 BetterSprinklersApi = Helper.ModRegistry.GetApi("Speeder.BetterSprinklers");
             }
+
+            LineSprinklersIsLoaded = Helper.ModRegistry.IsLoaded("hootless.LineSprinklers");
         }
 
         private void OnWorld_ObjectListChanged(object sender, ObjectListChangedEventArgs e)
@@ -59,13 +63,17 @@ namespace BetterActivateSprinklers
             }
         }
 
-        private void ActivateSprinkler(Object sprinkler)
+        private void ActivateSprinkler(StardewValley.Object sprinkler)
         {
             if (sprinkler == null) return;
 
             if (sprinkler.Name.Contains("Sprinkler"))
             {
-                if (BetterSprinklersApi == null)
+                if (LineSprinklersIsLoaded && sprinkler.Name.Contains("Line"))
+                {
+                    ActivateLineSprinkler(sprinkler);
+                }
+                else if (BetterSprinklersApi == null)
                 {
                     sprinkler.DayUpdate(Game1.currentLocation);
                 }
@@ -77,16 +85,63 @@ namespace BetterActivateSprinklers
 
                     foreach (Vector2 v in coverage)
                     {
-                        Vector2 coveredTile = sprinklerTile + v;
-                        TerrainFeature terrainFeature;
-                        HoeDirt hoeDirt;
-
-                        if (Game1.currentLocation.terrainFeatures.TryGetValue(coveredTile, out terrainFeature) && (hoeDirt = terrainFeature as HoeDirt) != null)
-                        {
-                            hoeDirt.state.Value = 1;
-                        }
+                        WaterTile(sprinklerTile + v);
                     }
                 }
+            }
+        }
+
+        private void ActivateLineSprinkler(StardewValley.Object sprinkler)
+        {
+            Vector2 waterTile = sprinkler.TileLocation;
+            int range;
+
+            if (sprinkler.Name.Contains("Quality")) range = 8;
+            else if (sprinkler.Name.Contains("Iridium")) range = 24;
+            else range = 4;
+
+            if (sprinkler.Name.Contains("(U)"))
+            {
+                for (int i = 0; i < range; i++)
+                {
+                    waterTile.Y--;
+                    WaterTile(waterTile);
+                }
+            }
+            else if (sprinkler.Name.Contains("(L)"))
+            {
+                for (int i = 0; i < range; i++)
+                {
+                    waterTile.X--;
+                    WaterTile(waterTile);
+                }
+            }
+            else if (sprinkler.Name.Contains("(R)"))
+            {
+                for (int i = 0; i < range; i++)
+                {
+                    waterTile.X++;
+                    WaterTile(waterTile);
+                }
+            }
+            else if (sprinkler.Name.Contains("(D)"))
+            {
+                for (int i = 0; i < range; i++)
+                {
+                    waterTile.Y++;
+                    WaterTile(waterTile);
+                }
+            }
+        }
+
+        private void WaterTile(Vector2 tile)
+        {
+            TerrainFeature terrainFeature;
+            HoeDirt hoeDirt;
+
+            if (Game1.currentLocation.terrainFeatures.TryGetValue(tile, out terrainFeature) && (hoeDirt = terrainFeature as HoeDirt) != null)
+            {
+                hoeDirt.state.Value = 1;
             }
         }
     }

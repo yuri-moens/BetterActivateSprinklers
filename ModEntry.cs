@@ -11,7 +11,7 @@ namespace BetterActivateSprinklers
     public class ModEntry : Mod
     {
         private ModConfig Config;
-        private object BetterSprinklersApi;
+        private object BetterSprinklersApi, PrismaticToolsApi;
         private bool LineSprinklersIsLoaded;
 
         public override void Entry(IModHelper helper)
@@ -36,6 +36,11 @@ namespace BetterActivateSprinklers
             if (Helper.ModRegistry.IsLoaded("Speeder.BetterSprinklers"))
             {
                 BetterSprinklersApi = Helper.ModRegistry.GetApi("Speeder.BetterSprinklers");
+            }
+
+            if (Helper.ModRegistry.IsLoaded("stokastic.PrismaticTools"))
+            {
+                PrismaticToolsApi = Helper.ModRegistry.GetApi("stokastic.PrismaticTools");
             }
 
             LineSprinklersIsLoaded = Helper.ModRegistry.IsLoaded("hootless.LineSprinklers");
@@ -73,21 +78,30 @@ namespace BetterActivateSprinklers
                 {
                     ActivateLineSprinkler(sprinkler);
                 }
-                else if (BetterSprinklersApi == null)
+                else if (PrismaticToolsApi != null && sprinkler.Name.Contains("Prismatic"))
                 {
-                    sprinkler.DayUpdate(Game1.currentLocation);
+                    ActivatePrismaticSprinkler(sprinkler);
+                }
+                else if (BetterSprinklersApi != null)
+                {
+                    ActivateBetterSprinkler(sprinkler);
                 }
                 else
                 {
-                    IDictionary<int, Vector2[]> coverageList = Helper.Reflection.GetMethod(BetterSprinklersApi, "GetSprinklerCoverage").Invoke<IDictionary<int, Vector2[]>>();
-                    Vector2[] coverage = coverageList[sprinkler.ParentSheetIndex];
-                    Vector2 sprinklerTile = sprinkler.TileLocation;
-
-                    foreach (Vector2 v in coverage)
-                    {
-                        WaterTile(sprinklerTile + v);
-                    }
+                    sprinkler.DayUpdate(Game1.currentLocation);
                 }
+            }
+        }
+
+        private void ActivateBetterSprinkler(StardewValley.Object sprinkler)
+        {
+            IDictionary<int, Vector2[]> coverageList = Helper.Reflection.GetMethod(BetterSprinklersApi, "GetSprinklerCoverage").Invoke<IDictionary<int, Vector2[]>>();
+            Vector2[] coverage = coverageList[sprinkler.ParentSheetIndex];
+            Vector2 sprinklerTile = sprinkler.TileLocation;
+
+            foreach (Vector2 v in coverage)
+            {
+                WaterTile(sprinklerTile + v);
             }
         }
 
@@ -131,6 +145,17 @@ namespace BetterActivateSprinklers
                     waterTile.Y++;
                     WaterTile(waterTile);
                 }
+            }
+        }
+
+        private void ActivatePrismaticSprinkler(StardewValley.Object sprinkler)
+        {
+            Vector2 sprinklerTile = sprinkler.TileLocation;
+            IEnumerable<Vector2> coverage = Helper.Reflection.GetMethod(PrismaticToolsApi, "GetSprinklerCoverage").Invoke<IEnumerable<Vector2>>(sprinklerTile);
+
+            foreach (Vector2 v in coverage)
+            {
+                WaterTile(v);
             }
         }
 

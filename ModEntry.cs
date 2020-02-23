@@ -92,7 +92,38 @@ namespace BetterActivateSprinklers
                 }
                 else
                 {
-                    sprinkler.DayUpdate(Game1.currentLocation);
+                    ActivateVanillaSprinkler(sprinkler);
+                }
+            }
+        }
+
+        private void ActivateVanillaSprinkler(StardewValley.Object sprinkler)
+        {
+            Vector2 sprinklerTile = sprinkler.TileLocation;
+            if (sprinkler.Name.Contains("Quality"))
+            {
+                Vector2[] coverage = Utility.getSurroundingTileLocationsArray(sprinklerTile);
+                foreach (Vector2 v in coverage)
+                {
+                    WaterTile(v);
+                }
+            }
+            else if (sprinkler.Name.Contains("Iridium"))
+            {
+                for (int i = (int)sprinklerTile.X - 2; (float)i <= sprinklerTile.X + 2f; i++)
+                {
+                    for (int j = (int)sprinklerTile.Y - 2; (float)j <= sprinklerTile.Y + 2f; j++)
+                    {
+                        Vector2 v = new Vector2((float)i, (float)j);
+                        WaterTile(v);
+                    }
+                }
+            }
+            else
+            {
+                foreach (Vector2 v in Utility.getAdjacentTileLocations(sprinklerTile))
+                {
+                    WaterTile(v);
                 }
             }
         }
